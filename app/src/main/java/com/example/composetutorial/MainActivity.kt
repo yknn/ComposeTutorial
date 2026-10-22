@@ -16,7 +16,7 @@ import com.example.composetutorial.ui.theme.ComposeTutorialTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+//        enableEdgeToEdge()
         setContent {
             ComposeTutorialTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->

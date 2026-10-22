@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "ComposeTutorial"
 include(":app")
+include(":serialport")
  
