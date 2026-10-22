@@ -10,7 +10,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -34,16 +39,16 @@ import java.util.Locale
 /**
  * 串口调试界面:演示 SerialPortClient + FrameDecoder 的异步读写与分帧。
  *
+ * 设备路径运行时扫描(SerialPortScanner),下拉选择,也允许手动输入。
+ *
  * 本例用换行分隔符分帧(文本行协议)。换成 STM32 二进制协议时,只需换解码器工厂,例如:
  *   SerialPortClient {
  *       LengthFieldFrameDecoder(
  *           header = byteArrayOf(0xAA.toByte(), 0x55.toByte()),
- *           lengthFieldOffset = 2,   // header(2) 之后就是长度字段
- *           lengthFieldLength = 1,   // 1 字节长度
- *           lengthAdjustment = 1,    // 尾部 1 字节校验未计入长度
- *       )
+ *           lengthFieldOffset = 2, lengthFieldLength = 1, lengthAdjustment = 1)
  *   }
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SerialPortDemoScreen(modifier: Modifier = Modifier) {
     val client = remember {
@@ -58,7 +63,9 @@ fun SerialPortDemoScreen(modifier: Modifier = Modifier) {
         log = (log + timeFmt.format(Date()) + "  " + line + "\n").takeLast(12000)
     }
 
-    var path by remember { mutableStateOf("/dev/ttyS3") }
+    var ports by remember { mutableStateOf(SerialPortScanner.listSerialPorts()) }
+    var expanded by remember { mutableStateOf(false) }
+    var path by remember { mutableStateOf(ports.firstOrNull() ?: "/dev/ttyS3") }
     var baud by remember { mutableStateOf("9600") }
     var sendText by remember { mutableStateOf("01 03 00 00 00 0A") }
     var sendAsHex by remember { mutableStateOf(true) }
@@ -83,14 +90,38 @@ fun SerialPortDemoScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = path,
-                onValueChange = { path = it },
-                label = { Text("设备") },
-                singleLine = true,
-                enabled = !isOpen,
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { if (!isOpen) expanded = it },
                 modifier = Modifier.weight(2f),
-            )
+            ) {
+                OutlinedTextField(
+                    value = path,
+                    onValueChange = { path = it },  // 允许手输未被自动发现的节点
+                    label = { Text("设备 (" + ports.size + ")") },
+                    singleLine = true,
+                    enabled = !isOpen,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = !isOpen)
+                        .fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    if (ports.isEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("未发现串口,可手动输入") },
+                            onClick = { expanded = false },
+                        )
+                    } else {
+                        ports.forEach { p ->
+                            DropdownMenuItem(
+                                text = { Text(p) },
+                                onClick = { path = p; expanded = false },
+                            )
+                        }
+                    }
+                }
+            }
             OutlinedTextField(
                 value = baud,
                 onValueChange = { baud = it.filter(Char::isDigit) },
@@ -101,6 +132,16 @@ fun SerialPortDemoScreen(modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
             )
         }
+
+        OutlinedButton(
+            onClick = {
+                ports = SerialPortScanner.listSerialPorts()
+                if (ports.isNotEmpty() && path !in ports) path = ports.first()
+                appendLog("扫描到 " + ports.size + " 个串口:" + ports.joinToString())
+            },
+            enabled = !isOpen,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("扫描串口") }
 
         Text(
             text = "状态:" + when (val s = state) {
@@ -117,6 +158,7 @@ fun SerialPortDemoScreen(modifier: Modifier = Modifier) {
                 if (isOpen) client.close()
                 else client.open(SerialPortClient.Config(path, baud.toIntOrNull() ?: 9600))
             },
+            enabled = path.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) { Text(if (isOpen) "关闭串口" else "打开串口") }
 
