@@ -18,4 +18,12 @@ object HexUtils {
     /** ByteArray -> "01 03 00 0A" */
     fun format(data: ByteArray): String =
         data.joinToString(" ") { "%02X".format(it) }
+
+    /** 可打印字符原样,其余用 '.' 代替 */
+    fun ascii(data: ByteArray): String = buildString {
+        for (b in data) {
+            val c = b.toInt() and 0xFF
+            append(if (c in 0x20..0x7E) c.toChar() else '.')
+        }
+    }
 }
