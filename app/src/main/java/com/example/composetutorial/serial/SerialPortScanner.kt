@@ -18,8 +18,7 @@ object SerialPortScanner {
             }
         }
         // 2. 兜底:常见节点前缀(有些板子不在 /proc/tty/drivers 里)
-        listOf("/dev/ttyS", "/dev/ttyUSB", "/dev/ttyACM", "/dev/ttyHS", "/dev/ttyMT")
-            .forEach { scanDev(it, result) }
+        listOf("/dev/ttyS", "/dev/ttyUSB", "/dev/ttyACM", "/dev/ttyHS", "/dev/ttyMT").forEach { scanDev(it, result) }
         return result.toList()
     }
 
